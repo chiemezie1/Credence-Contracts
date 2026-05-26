@@ -5,6 +5,9 @@ pub fn is_valid_bond(amount: i128) -> bool {
 }
 
 #[cfg(test)]
+mod fuzz;
+
+#[cfg(test)]
 mod tests {
     use super::*;
 
