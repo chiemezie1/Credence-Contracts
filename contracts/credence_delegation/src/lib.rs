@@ -254,10 +254,13 @@ impl CredenceDelegation {
         delegation_type: DelegationType,
     ) -> Delegation {
         let key = DataKey::Delegation(owner, delegate, delegation_type);
-        e.storage()
-            .instance()
+        let d: Delegation = e
+            .storage()
+            .persistent()
             .get(&key)
-            .unwrap_or_else(|| panic_with_error!(&e, ContractError::DelegationNotFound))
+            .unwrap_or_else(|| panic_with_error!(&e, ContractError::DelegationNotFound));
+        nonce::bump_delegation_ttl(&e, &key, d.expires_at);
+        d
     }
 
     /// Check whether a delegate is currently valid (not revoked, not expired).
@@ -268,8 +271,11 @@ impl CredenceDelegation {
         delegation_type: DelegationType,
     ) -> bool {
         let key = DataKey::Delegation(owner, delegate, delegation_type);
-        match e.storage().instance().get::<_, Delegation>(&key) {
-            Some(d) => !d.revoked && d.expires_at > e.ledger().timestamp(),
+        match e.storage().persistent().get::<_, Delegation>(&key) {
+            Some(d) => {
+                nonce::bump_delegation_ttl(&e, &key, d.expires_at);
+                !d.revoked && d.expires_at > e.ledger().timestamp()
+            }
             None => false,
         }
     }
@@ -280,8 +286,9 @@ impl CredenceDelegation {
         subject: Address,
     ) -> AttestationStatus {
         let key = DataKey::Delegation(attester, subject, DelegationType::Attestation);
-        match e.storage().instance().get::<_, Delegation>(&key) {
+        match e.storage().persistent().get::<_, Delegation>(&key) {
             Some(d) => {
+                nonce::bump_delegation_ttl(&e, &key, d.expires_at);
                 if d.revoked {
                     AttestationStatus::Revoked
                 } else {
@@ -369,7 +376,11 @@ impl CredenceDelegation {
             expires_at,
             revoked: false,
         };
-        e.storage().instance().set(&key, &d);
+        e.storage().persistent().set(&key, &d);
+        nonce::bump_delegation_ttl(e, &key, expires_at);
+        // Bump nonce TTL to at least cover this delegation's lifetime.
+        let nonce_key = DataKey::Nonce(owner.clone());
+        nonce::bump_nonce_ttl(e, &nonce_key, expires_at);
         e.events()
             .publish((Symbol::new(e, "delegation_created"),), d.clone());
         d
@@ -385,7 +396,7 @@ impl CredenceDelegation {
         let key = DataKey::Delegation(owner.clone(), delegate.clone(), delegation_type.clone());
         let mut d: Delegation = e
             .storage()
-            .instance()
+            .persistent()
             .get(&key)
             .unwrap_or_else(|| panic_with_error!(e, ContractError::DelegationNotFound));
 
@@ -394,7 +405,8 @@ impl CredenceDelegation {
         }
 
         d.revoked = true;
-        e.storage().instance().set(&key, &d);
+        e.storage().persistent().set(&key, &d);
+        nonce::bump_delegation_ttl(e, &key, d.expires_at);
         e.events()
             .publish((Symbol::new(e, "delegation_revoked"),), d);
     }
@@ -408,3 +420,6 @@ mod test_pausable;
 
 #[cfg(test)]
 mod test_domain_separation;
+
+#[cfg(test)]
+mod test_delegation_ttl;
