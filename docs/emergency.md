@@ -19,7 +19,7 @@ All Credence contracts include a comprehensive emergency pause mechanism that al
 - `credence_arbitration` - Dispute resolution system  
 - `credence_delegation` - Attestation delegation management
 - `credence_treasury` - Fee collection and withdrawal management
-- `credence_bond` - Identity bond creation and management
+- `credence_bond` - Identity bond creation, withdrawal, slashing, fee, and attestation management
 - `admin` - Admin role management system
 
 ## Pause Mechanism API
@@ -69,6 +69,27 @@ Execute a pause/unpause proposal once sufficient approvals are collected.
 - **When Paused**: Pause management functions remain available for recovery
 - **Exemptions**: The following functions are not blocked when the contract is paused:
   - Pause management: `pause()`, `unpause()`, `set_pause_signer()`, `set_pause_threshold()`, `approve_pause_proposal()`, `execute_pause_proposal()`
+
+### CredenceBond Pause Coverage
+
+The bond contract stores its emergency pause flag at `DataKey::Paused`. Admins can call `pause(admin)` and `unpause(admin)` directly, and both functions emit audit events.
+
+While paused, the bond contract blocks mutating bond lifecycle and incident-sensitive paths, including:
+
+- `create_bond`
+- `top_up`
+- `withdraw`
+- `withdraw_early`
+- `request_withdrawal`
+- `renew_if_rolling`
+- `slash_bond`
+- `withdraw_bond`
+- `collect_fees`
+- Admin/configuration mutations such as attester registration, weight config, early-exit config, callback registration, fee deposits, and attestation add/revoke operations
+
+Bond read paths remain callable while paused, including `is_paused`, `get_identity_state`, `get_tier`, `get_nonce`, `get_attestation`, `get_subject_attestations`, and `get_subject_attestation_count`.
+
+Operationally, pausing during an active lock-up prevents withdrawals, early exits, rolling withdrawal requests, renewal, slashing, and fee collection until `unpause(admin)` succeeds. After unpause, the same state can continue through the normal lifecycle.
 
 ### Authorization Model
 - **Admin Functions**: Require SuperAdmin role (in admin contract) or Admin address (in other contracts)
