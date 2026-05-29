@@ -109,10 +109,7 @@ This mapping is a convenience reference for authors and testers; the authoritati
 | 500 | `ExpiryInPast` | Delegation expiry timestamp is in the past |
 | 501 | `DelegationNotFound` | No delegation record found |
 | 502 | `AlreadyRevoked` | Delegation already revoked |
-| 503 | `DomainMismatch` | Delegated payload domain tag does not match the expected action |
-| 504 | `OwnerMismatch` | Delegated payload owner does not match the caller owner |
-| 505 | `TargetMismatch` | Delegated payload target does not match the expected action target |
-| 506 | `ContractIdMismatch` | Delegated payload contract_id does not match the current contract address |
+| 503 | `DelegationExpiryTooLong` | Delegation expiry exceeds maximum allowed lifetime |
 
 ### Treasury (600-699)
 
@@ -197,4 +194,3 @@ A: Map library panics to canonical errors at contract boundaries. For example, o
 
 **Q: How do tests validate error codes?**  
 A: Use `try_*` client methods with `matches!()` or `#[should_panic(expected = "Error(Contract, #NNN)")]` annotations.
-

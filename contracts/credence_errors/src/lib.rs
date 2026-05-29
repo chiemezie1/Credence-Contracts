@@ -55,6 +55,10 @@ pub enum ErrorCategory {
 ///   500 - 599 : Delegation
 ///   600 - 699 : Treasury
 ///   700 - 799 : Arithmetic
+// Keep conversions generated, but do not export this utility enum as contract
+// spec metadata. The shared enum has more variants than Soroban's current
+// exported error-enum case vector limit supports, and this crate is not a
+// deployed contract interface.
 #[contracterror(export = false)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u32)]
@@ -288,25 +292,10 @@ pub enum ContractError {
     /// Contracts: delegation
     AlreadyRevoked = 502,
 
-    /// Payload domain tag does not match the expected delegated action.
-    /// Replaces: panic!("domain mismatch")
+    /// Delegation expiry timestamp exceeds the maximum allowed lifetime.
+    /// Triggered by: expires_at > now + MAX_DELEGATION_DURATION
     /// Contracts: delegation
-    DomainMismatch = 503,
-
-    /// Payload owner does not match the expected caller owner.
-    /// Replaces: panic!("owner mismatch")
-    /// Contracts: delegation
-    OwnerMismatch = 504,
-
-    /// Payload target does not match the expected action target.
-    /// Replaces: panic!("target mismatch")
-    /// Contracts: delegation
-    TargetMismatch = 505,
-
-    /// Payload contract_id does not match the current contract address.
-    /// Replaces: panic!("contract_id mismatch")
-    /// Contracts: delegation
-    ContractIdMismatch = 506,
+    DelegationExpiryTooLong = 503,
 
     // --- Treasury (600-699) ---
     /// Amount argument must be strictly positive (> 0).
@@ -422,10 +411,7 @@ impl ErrorExt for ContractError {
             ContractError::ExpiryInPast
             | ContractError::DelegationNotFound
             | ContractError::AlreadyRevoked
-            | ContractError::DomainMismatch
-            | ContractError::OwnerMismatch
-            | ContractError::TargetMismatch
-            | ContractError::ContractIdMismatch => ErrorCategory::Delegation,
+            | ContractError::DelegationExpiryTooLong => ErrorCategory::Delegation,
 
             ContractError::AmountMustBePositive
             | ContractError::ThresholdExceedsSigners
@@ -506,6 +492,9 @@ impl ErrorExt for ContractError {
             ContractError::ExpiryInPast => "Delegation expiry must be in the future",
             ContractError::DelegationNotFound => "No delegation found for the given key",
             ContractError::AlreadyRevoked => "Delegation has already been revoked",
+            ContractError::DelegationExpiryTooLong => {
+                "Delegation expiry exceeds the maximum allowed lifetime"
+            }
             ContractError::AmountMustBePositive => "Amount must be strictly positive (> 0)",
             ContractError::ThresholdExceedsSigners => {
                 "Threshold cannot exceed the current signer count"

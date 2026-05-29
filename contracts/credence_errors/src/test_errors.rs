@@ -34,7 +34,6 @@ mod tests {
             ContractError::InvalidBondAmount,
             ContractError::InvalidBondDuration,
             ContractError::InvalidNoticePeriod,
-            ContractError::BondAlreadyExists,
             ContractError::DuplicateAttestation,
             ContractError::AttestationNotFound,
             ContractError::AttestationAlreadyRevoked,
@@ -50,6 +49,7 @@ mod tests {
             ContractError::ExpiryInPast,
             ContractError::DelegationNotFound,
             ContractError::AlreadyRevoked,
+            ContractError::DelegationExpiryTooLong,
             ContractError::AmountMustBePositive,
             ContractError::ThresholdExceedsSigners,
             ContractError::InsufficientTreasuryBalance,
@@ -103,7 +103,6 @@ mod tests {
         assert_eq!(ContractError::InvalidBondAmount as u32, 214);
         assert_eq!(ContractError::InvalidBondDuration as u32, 215);
         assert_eq!(ContractError::InvalidNoticePeriod as u32, 216);
-        assert_eq!(ContractError::BondAlreadyExists as u32, 217);
     }
 
     #[test]
@@ -131,10 +130,7 @@ mod tests {
         assert_eq!(ContractError::ExpiryInPast as u32, 500);
         assert_eq!(ContractError::DelegationNotFound as u32, 501);
         assert_eq!(ContractError::AlreadyRevoked as u32, 502);
-        assert_eq!(ContractError::DomainMismatch as u32, 503);
-        assert_eq!(ContractError::OwnerMismatch as u32, 504);
-        assert_eq!(ContractError::TargetMismatch as u32, 505);
-        assert_eq!(ContractError::ContractIdMismatch as u32, 506);
+        assert_eq!(ContractError::DelegationExpiryTooLong as u32, 503);
     }
 
     #[test]
@@ -236,6 +232,14 @@ mod tests {
             ErrorCategory::Bond
         );
         assert_eq!(
+            ContractError::LeverageExceeded.category(),
+            ErrorCategory::Bond
+        );
+        assert_eq!(
+            ContractError::UnsupportedToken.category(),
+            ErrorCategory::Bond
+        );
+        assert_eq!(
             ContractError::InvalidBondAmount.category(),
             ErrorCategory::Bond
         );
@@ -245,10 +249,6 @@ mod tests {
         );
         assert_eq!(
             ContractError::InvalidNoticePeriod.category(),
-            ErrorCategory::Bond
-        );
-        assert_eq!(
-            ContractError::BondAlreadyExists.category(),
             ErrorCategory::Bond
         );
     }
@@ -320,19 +320,7 @@ mod tests {
             ErrorCategory::Delegation
         );
         assert_eq!(
-            ContractError::DomainMismatch.category(),
-            ErrorCategory::Delegation
-        );
-        assert_eq!(
-            ContractError::OwnerMismatch.category(),
-            ErrorCategory::Delegation
-        );
-        assert_eq!(
-            ContractError::TargetMismatch.category(),
-            ErrorCategory::Delegation
-        );
-        assert_eq!(
-            ContractError::ContractIdMismatch.category(),
+            ContractError::DelegationExpiryTooLong.category(),
             ErrorCategory::Delegation
         );
     }
@@ -402,7 +390,7 @@ mod tests {
     fn test_all_variants_count() {
         assert_eq!(
             all_variants().len(),
-            55,
+            54,
             "Update all_variants() and this count when adding new errors"
         );
     }
@@ -875,9 +863,12 @@ mod tests {
     }
 
     // delegation
-    fn mock_delegate(expiry_future: bool) -> Result<(), ContractError> {
+    fn mock_delegate(expiry_future: bool, within_max_duration: bool) -> Result<(), ContractError> {
         if !expiry_future {
             return Err(ContractError::ExpiryInPast);
+        }
+        if !within_max_duration {
+            return Err(ContractError::DelegationExpiryTooLong);
         }
         Ok(())
     }
@@ -898,8 +889,17 @@ mod tests {
 
     #[test]
     fn test_expiry_in_past() {
-        assert_eq!(mock_delegate(false), Err(ContractError::ExpiryInPast));
-        assert!(mock_delegate(true).is_ok());
+        assert_eq!(mock_delegate(false, true), Err(ContractError::ExpiryInPast));
+        assert!(mock_delegate(true, true).is_ok());
+    }
+
+    #[test]
+    fn test_delegation_expiry_too_long() {
+        assert_eq!(
+            mock_delegate(true, false),
+            Err(ContractError::DelegationExpiryTooLong)
+        );
+        assert!(mock_delegate(true, true).is_ok());
     }
 
     #[test]
