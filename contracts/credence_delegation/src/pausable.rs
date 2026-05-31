@@ -35,6 +35,15 @@ pub fn require_not_paused(e: &Env) {
     }
 }
 
+/// Add or remove a pause signer.
+///
+/// Invariant: the stored `PauseSignerCount` MUST always equal the number
+/// of `PauseSigner(Address)` entries set to `true` in contract storage.
+///
+/// Implementations must ensure `PauseSignerCount` is only incremented when
+/// a previously-false entry is set to `true`, and only decremented when a
+/// previously-true entry is removed. Tests should assert this invariant after
+/// every `set_pause_signer` call.
 pub fn set_pause_signer(e: &Env, admin: &Address, signer: &Address, enabled: bool) {
     require_admin_auth(e, admin);
 
