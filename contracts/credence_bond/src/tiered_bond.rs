@@ -1,38 +1,14 @@
-<<<<<<< HEAD
 //! Tiered Bond System
 //!
 //! Assigns identity tiers (Bronze, Silver, Gold, Platinum) based on bonded amount thresholds.
-//! Supports tier upgrade on bond increase and tier downgrade on partial withdrawal.
-//! Emits tier change events when tier changes.
-//!
-//! # Important: Decimal Normalization
-//! All thresholds are expressed in **normalized 18-decimal format**.
-//! The bond contract normalizes all token amounts to 18 decimals on ingress,
-//! so these thresholds work correctly regardless of the underlying token's decimals.
-//!
-//! Example thresholds (in normalized 18-decimal format):
-//! - Bronze: < 1,000 tokens (1,000 * 10^18)
-//! - Silver: >= 1,000 tokens, < 5,000 tokens
-//! - Gold: >= 5,000 tokens, < 20,000 tokens  
-//! - Platinum: >= 20,000 tokens
 
 use crate::BondTier;
 use soroban_sdk::Env;
 
-/// Tier thresholds in normalized 18-decimal format.
-/// These represent: Bronze < 1000, Silver < 5000, Gold < 20000 tokens
-/// Assuming 18 decimals: 1000 * 10^18 = 10^21
-pub const TIER_BRONZE_MAX: i128 = 1_000_000_000_000_000_000_000; // 1000 * 10^18
-pub const TIER_SILVER_MAX: i128 = 5_000_000_000_000_000_000_000; // 5000 * 10^18
-pub const TIER_GOLD_MAX: i128 = 20_000_000_000_000_000_000_000; // 20000 * 10^18
+pub const TIER_BRONZE_MAX: i128 = 1_000_000_000_000_000_000_000;
+pub const TIER_SILVER_MAX: i128 = 5_000_000_000_000_000_000_000;
+pub const TIER_GOLD_MAX: i128 = 20_000_000_000_000_000_000_000;
 
-/// Returns the tier for a given bonded amount, checking for admin-configured storage thresholds.
-///
-/// # Boundary Inclusivity
-/// - **Bronze**: [0, bronze_max) (Inclusive of 0, exclusive of bronze_max)
-/// - **Silver**: [bronze_max, silver_max) (Inclusive of bronze_max, exclusive of silver_max)
-/// - **Gold**: [silver_max, gold_max) (Inclusive of silver_max, exclusive of gold_max)
-/// - **Platinum**: [gold_max, i128::MAX] (Inclusive of gold_max, inclusive of i128::MAX)
 #[must_use]
 pub fn get_tier_for_amount(e: &Env, amount: i128) -> BondTier {
     let thresholds = e
@@ -56,7 +32,6 @@ pub fn get_tier_for_amount(e: &Env, amount: i128) -> BondTier {
     }
 }
 
-/// Emits a tier change event if the tier changed.
 pub fn emit_tier_change_if_needed(
     e: &Env,
     identity: &soroban_sdk::Address,
@@ -66,34 +41,6 @@ pub fn emit_tier_change_if_needed(
     if core::mem::discriminant(&old_tier) != core::mem::discriminant(&new_tier) {
         e.events().publish(
             (soroban_sdk::Symbol::new(e, "tier_changed"),),
-=======
-use crate::BondTier;
-use soroban_sdk::{Address, Env, Symbol};
-
-const TIER_BRONZE_MAX: i128 = 1_000;
-const TIER_SILVER_MAX: i128 = 5_000;
-const TIER_GOLD_MAX: i128 = 20_000;
-
-pub fn get_tier_for_amount(amount: i128) -> BondTier {
-    match amount {
-        x if x < 0 => BondTier::Bronze,
-        x if x < TIER_BRONZE_MAX => BondTier::Bronze,
-        x if x < TIER_SILVER_MAX => BondTier::Silver,
-        x if x < TIER_GOLD_MAX => BondTier::Gold,
-        _ => BondTier::Platinum,
-    }
-}
-
-pub fn emit_tier_change_if_needed(
-    e: &Env,
-    identity: &Address,
-    old_tier: BondTier,
-    new_tier: BondTier,
-) {
-    if old_tier != new_tier {
-        e.events().publish(
-            (Symbol::new(e, "tier_changed"),),
->>>>>>> main
             (identity.clone(), new_tier),
         );
     }
