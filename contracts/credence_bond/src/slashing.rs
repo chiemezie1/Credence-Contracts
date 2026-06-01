@@ -57,9 +57,13 @@ pub fn slash_bond(e: &Env, admin: &Address, slash_amount: i128) -> IdentityBond 
     }
 
     updated
+#402--Contracts]-Bond--differential-test-harness-comparing-ours.rs/base.rs/theirs.rs-against-credence_bond-crate-FIX
 }
 
 /// Wrapper that accepts an identity parameter for backward compatibility with fork variants.
 pub fn slash_bond_with_identity(e: &Env, admin: &Address, _identity: &Address, slash_amount: i128) -> IdentityBond {
     slash_bond(e, admin, slash_amount)
+
+main
 }
+

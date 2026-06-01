@@ -1,4 +1,8 @@
+#402--Contracts]-Bond--differential-test-harness-comparing-ours.rs/base.rs/theirs.rs-against-credence_bond-crate-FIX
 extern crate std;
+
+﻿extern crate std;
+main
 
 use proptest::prelude::*;
 
@@ -216,3 +220,4 @@ proptest! {
         assert!(BondState::tier_for_amount(a) <= BondState::tier_for_amount(b));
     }
 }
+

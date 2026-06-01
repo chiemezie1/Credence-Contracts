@@ -21,3 +21,7 @@ pub fn transfer_out(e: &Env, to: &Address, amount: i128) {
     
     client.transfer(&e.current_contract_address(), to, &amount);
 }
+#402--Contracts]-Bond--differential-test-harness-comparing-ours.rs/base.rs/theirs.rs-against-credence_bond-crate-FIX
+
+
+main

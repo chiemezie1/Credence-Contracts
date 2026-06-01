@@ -1,5 +1,6 @@
 #![no_std]
 
+#402--Contracts]-Bond--differential-test-harness-comparing-ours.rs/base.rs/theirs.rs-against-credence_bond-crate-FIX
 pub mod early_exit_penalty;
 pub mod nonce;
 pub mod rolling_bond;
@@ -7,7 +8,25 @@ pub mod slashing;
 pub mod tiered_bond;
 pub mod weighted_attestation;
 
+mod early_exit_penalty;
+mod migration;
+mod nonce;
+mod rolling_bond;
+mod slashing;
+mod tiered_bond;
+mod weighted_attestation;
+main
+
+#[path = "types/mod.rs"]
 pub mod types;
+
+/// Reusable bond-invariant assertion library (test-only).
+#[cfg(test)]
+pub mod test_invariants;
+
+/// Tests exercising the reusable bond-invariant library (test-only).
+#[cfg(test)]
+mod test_invariants_usage;
 
 use credence_errors::ContractError;
 use soroban_sdk::{
@@ -39,6 +58,10 @@ pub struct IdentityBond {
     pub notice_period_duration: u64,
 }
 
+#402--Contracts]-Bond--differential-test-harness-comparing-ours.rs/base.rs/theirs.rs-against-credence_bond-crate-FIX
+
+
+main
 // Re-export attestation type for external callers.
 pub use types::Attestation;
 
@@ -56,6 +79,7 @@ pub enum DataKey {
     AttesterStake(Address),
     WeightConfig,
     EarlyExitConfig,
+    GraceWindow,
 }
 
 const STORAGE_TTL_EXTEND_TO: u32 = 31_536_000;
@@ -177,6 +201,8 @@ impl CredenceBond {
 
     /// Retrieve the current bond state.
     pub fn get_identity_state(e: Env) -> IdentityBond {
+        // Ensure storage is migrated from v1 to v2 before accessing bond state
+        migration::migrate_v1_to_v2(&e);
         let key = DataKey::Bond;
         let bond: IdentityBond = e
             .storage()
@@ -400,6 +426,11 @@ impl CredenceBond {
             if e.ledger().timestamp() < earliest {
                 panic!("notice period not elapsed");
             }
+ #402--Contracts]-Bond--differential-test-harness-comparing-ours.rs/base.rs/theirs.rs-against-credence_bond-crate-FIX
+
+        } else if e.ledger().timestamp() < bond.bond_start.saturating_add(bond.bond_duration) {
+            panic_with_error!(e, ContractError::LockupNotExpired);
+main
         }
 
         let available = bond

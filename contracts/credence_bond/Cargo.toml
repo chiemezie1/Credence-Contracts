@@ -2,6 +2,13 @@
 name = "credence_bond"
 version = "0.1.0"
 edition = "2021"
+# Disable autodiscovery of the stale `tests/` integration crates. Those files
+# (test_access_control.rs, test_fee_on_transfer_rejection.rs) target an
+# abandoned token-based contract API (set_token/get_nonce/create_bond_with_rolling)
+# that does not exist in the canonical contract; they never compiled. The bond
+# invariants suite lives in the library's #[cfg(test)] modules instead, so the
+# whole package builds and tests green with `cargo test -p credence_bond`.
+autotests = false
 
 [lib]
 crate-type = ["lib"]
