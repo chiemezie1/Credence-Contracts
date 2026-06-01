@@ -343,18 +343,22 @@ pub enum ContractError {
     DelegationExpiryTooLong = 503,
 
     /// Payload domain tag does not match the expected delegated action.
+    /// Replaces: panic!("domain mismatch")
     /// Contracts: delegation
     DomainMismatch = 504,
 
     /// Payload owner does not match the expected caller owner.
+    /// Replaces: panic!("owner mismatch")
     /// Contracts: delegation
     OwnerMismatch = 505,
 
     /// Payload target does not match the expected action target.
+    /// Replaces: panic!("target mismatch")
     /// Contracts: delegation
     TargetMismatch = 506,
 
     /// Payload contract_id does not match the current contract address.
+    /// Replaces: panic!("contract_id mismatch")
     /// Contracts: delegation
     ContractIdMismatch = 507,
 

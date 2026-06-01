@@ -1,4 +1,4 @@
-﻿use crate::{DataKey, IdentityBond};
+use crate::{DataKey, IdentityBond};
 use credence_errors::ContractError;
 use soroban_sdk::{panic_with_error, Address, Env, IntoVal, Symbol, Val, Vec};
 
