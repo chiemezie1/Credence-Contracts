@@ -11,6 +11,8 @@
 //! - Comprehensive event emission
 //! - Per-identity bond support
 
+#![allow(dead_code)]
+
 use crate::{tiered_bond, BondTier, DataKey, IdentityBond};
 use soroban_sdk::{contracttype, Address, Env, Symbol, Vec};
 

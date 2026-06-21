@@ -119,7 +119,7 @@ fn check_attestation_count_consistent(e: &Env, subject: &Address, bond: &Identit
 
     let count_key = DataKey::SubjectAttestationCount(subject.clone());
     if let Some(count) = e.storage().instance().get::<_, u32>(&count_key) {
-        if u32::try_from(list_len).unwrap_or(u32::MAX) != count {
+        if list_len != count {
             fail_drift(
                 e,
                 BondDriftDetails {
@@ -128,7 +128,7 @@ fn check_attestation_count_consistent(e: &Env, subject: &Address, bond: &Identit
                     bonded_amount: bond.bonded_amount,
                     slashed_amount: bond.slashed_amount,
                     attestation_count: count,
-                    attestation_list_len: u32::try_from(list_len).unwrap_or(u32::MAX),
+                    attestation_list_len: list_len,
                 },
             );
         }

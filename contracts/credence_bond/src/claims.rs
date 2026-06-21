@@ -10,6 +10,8 @@
 //! - Comprehensive event emission
 //! - Gas-optimized claim operations
 
+#![allow(dead_code)]
+
 use crate::{events, DataKey};
 use soroban_sdk::{contracttype, Address, Env, Map, Symbol, Vec};
 

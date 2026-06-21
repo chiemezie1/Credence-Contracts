@@ -12,6 +12,7 @@ pub fn is_period_ended(now: u64, bond_start: u64, bond_duration: u64) -> bool {
 
 /// Returns true if a withdrawal was requested and the notice period has elapsed.
 #[must_use]
+#[allow(dead_code)]
 pub fn can_withdraw_after_notice(
     now: u64,
     withdrawal_requested_at: u64,
@@ -33,6 +34,7 @@ pub fn apply_renewal(bond: &mut IdentityBond, new_start: u64) {
 
 /// Returns the period end timestamp (start + duration) using saturating add.
 #[must_use]
+#[allow(dead_code)]
 pub fn period_end(start: u64, duration: u64) -> u64 {
     start.saturating_add(duration)
 }

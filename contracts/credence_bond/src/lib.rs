@@ -474,7 +474,7 @@ impl CredenceBond {
     ) -> IdentityBond {
         // auth: tree shape [Identity] -> [Bond::create_bond]; may be delegated.
         identity.require_auth();
-        /// chaos: ledger timestamp can be manipulated in tests to verify duration invariants.
+        // chaos: ledger timestamp can be manipulated in tests to verify duration invariants.
         let bond_start = e.ledger().timestamp();
 
         let _end_timestamp = bond_start
@@ -1236,7 +1236,7 @@ impl CredenceBond {
         bump_instance_ttl(&e);
         invariants::assert_self_consistent(&e);
 
-        /// chaos: external callback panic must result in atomic state revert and lock release.
+        // chaos: external callback panic must result in atomic state revert and lock release.
         let cb_key = Symbol::new(&e, "callback");
         if let Some(cb_addr) = e.storage().instance().get::<_, Address>(&cb_key) {
             let fn_name = Symbol::new(&e, "on_withdraw");

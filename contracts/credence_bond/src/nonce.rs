@@ -34,6 +34,7 @@ pub fn consume_nonce(e: &Env, identity: &Address, expected_nonce: u64) {
     bump_nonce_ttl(e, &DataKey::Nonce(identity.clone()), 0);
 }
 
+#[allow(dead_code)]
 /// Returns the configured grace window in seconds (0 = strict enforcement).
 ///
 /// Grace is DISABLED by default. When non-zero, signatures are accepted for
@@ -46,6 +47,7 @@ fn get_grace_window(e: &Env) -> u64 {
         .unwrap_or(0)
 }
 
+#[allow(dead_code)]
 /// Validates that the current ledger timestamp is within the allowed window.
 ///
 /// Accepted if: `now <= deadline + grace_window`
@@ -83,6 +85,7 @@ pub fn require_domain_match(e: &Env, expected_contract: &Address) {
     }
 }
 
+#[allow(dead_code)]
 /// Validate deadline (+ grace), domain, and consume nonce in one atomic call.
 ///
 /// The order of checks is important:
@@ -126,7 +129,7 @@ pub fn validate_and_consume_with_grace(
     consume_nonce(e, identity, nonce);
 }
 
-fn bump_nonce_ttl(e: &Env, key: &DataKey, _ttl: u32) {
+fn bump_nonce_ttl(e: &Env, _key: &DataKey, _ttl: u32) {
     e.storage()
         .instance()
         .extend_ttl(MIN_NONCE_TTL, MIN_NONCE_TTL * 2);

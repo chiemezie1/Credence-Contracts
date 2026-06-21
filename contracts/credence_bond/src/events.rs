@@ -21,6 +21,7 @@ use soroban_sdk::{Address, Env, String, Symbol};
 /// other lifecycle event. Note: `notice_period_duration` is **not** carried
 /// here, so rolling-bond notice periods are not reconstructable from events
 /// alone — see `docs/indexer-replay-contract.md`.
+#[allow(dead_code)]
 pub fn emit_bond_created_v2(
     e: &Env,
     identity: &Address,
@@ -54,6 +55,7 @@ pub fn emit_bond_created_v2(
 /// * `bool` - Whether the bond is rolling
 ///
 /// @deprecated Use emit_bond_created_v2 for better indexing
+#[allow(dead_code)]
 pub fn emit_bond_created(
     e: &Env,
     identity: &Address,
@@ -144,6 +146,7 @@ pub fn emit_bond_increased(e: &Env, identity: &Address, added_amount: i128, new_
 /// informational for the indexer and do not alter the reconstructed bond. This
 /// event does **not** by itself flip `active` to `false`; full-exit
 /// deactivation is signalled separately by the withdraw-bond path.
+#[allow(dead_code)]
 pub fn emit_bond_withdrawn_v2(
     e: &Env,
     identity: &Address,
@@ -175,6 +178,7 @@ pub fn emit_bond_withdrawn_v2(
 /// * `i128` - The remaining bonded amount
 ///
 /// @deprecated Use emit_bond_withdrawn_v2 for better indexing
+#[allow(dead_code)]
 pub fn emit_bond_withdrawn(e: &Env, identity: &Address, amount_withdrawn: i128, remaining: i128) {
     let topics = (Symbol::new(e, "bond_withdrawn"), identity.clone());
     let data = (amount_withdrawn, remaining);
@@ -269,6 +273,7 @@ pub fn emit_claim_added(e: &Env, user: &Address, claim: &crate::claims::PendingC
 /// * `u32` - Number of claims processed
 /// * `i128` - Total amount claimed
 /// * `soroban_sdk::Vec<crate::claims::ClaimType>` - Types of claims processed
+#[allow(dead_code)]
 pub fn emit_claims_processed(
     e: &Env,
     user: &Address,
@@ -293,6 +298,7 @@ pub fn emit_claims_processed(
 /// # Data
 /// * `u32` - Number of expired claims removed
 /// * `i128` - Total amount of expired claims
+#[allow(dead_code)]
 pub fn emit_claims_expired(e: &Env, user: &Address, expired_count: u32, expired_amount: i128) {
     let topics = (Symbol::new(e, "claims_expired"), user.clone());
     let data = (expired_count, expired_amount);
@@ -300,12 +306,14 @@ pub fn emit_claims_expired(e: &Env, user: &Address, expired_count: u32, expired_
 }
 
 /// Emitted when upgrade authorization is initialized.
+#[allow(dead_code)]
 pub fn emit_upgrade_auth_initialized(e: &Env, admin: &Address) {
     let topics = (Symbol::new(e, "upgrade_auth_init"), admin.clone());
     e.events().publish(topics, ());
 }
 
 /// Emitted when upgrade authorization is granted.
+#[allow(dead_code)]
 pub fn emit_upgrade_auth_granted(
     e: &Env,
     admin: &Address,
@@ -318,6 +326,7 @@ pub fn emit_upgrade_auth_granted(
 }
 
 /// Emitted when upgrade authorization is revoked.
+#[allow(dead_code)]
 pub fn emit_upgrade_auth_revoked(e: &Env, admin: &Address, address: &Address) {
     let topics = (Symbol::new(e, "upgrade_auth_revoked"), admin.clone());
     let data = address.clone();
@@ -325,6 +334,7 @@ pub fn emit_upgrade_auth_revoked(e: &Env, admin: &Address, address: &Address) {
 }
 
 /// Emitted when an upgrade is proposed.
+#[allow(dead_code)]
 pub fn emit_upgrade_proposed(
     e: &Env,
     proposer: &Address,
@@ -337,6 +347,7 @@ pub fn emit_upgrade_proposed(
 }
 
 /// Emitted when an upgrade proposal is approved.
+#[allow(dead_code)]
 pub fn emit_upgrade_approved(e: &Env, approver: &Address, proposal_id: u64) {
     let topics = (Symbol::new(e, "upgrade_approved"), approver.clone());
     let data = proposal_id;
@@ -356,6 +367,7 @@ pub fn emit_upgrade_executed(
 }
 
 /// Emitted when an administrative transfer is initiated.
+#[allow(dead_code)]
 pub fn emit_admin_transfer_started(e: &Env, current_admin: &Address, pending_admin: &Address) {
     let topics = (
         Symbol::new(e, "admin_transfer_started"),
@@ -366,6 +378,7 @@ pub fn emit_admin_transfer_started(e: &Env, current_admin: &Address, pending_adm
 }
 
 /// Emitted when an administrative transfer is completed.
+#[allow(dead_code)]
 pub fn emit_admin_transfer_completed(e: &Env, old_admin: &Address, new_admin: &Address) {
     let topics = (
         Symbol::new(e, "admin_transfer_completed"),
@@ -409,6 +422,7 @@ pub fn emit_upgrade_admin_transfer_completed(e: &Env, old_admin: &Address, new_a
 /// # Data
 /// * `i128` - Old value
 /// * `i128` - New value
+#[allow(dead_code)]
 pub fn emit_parameter_updated(
     e: &Env,
     key: Symbol,

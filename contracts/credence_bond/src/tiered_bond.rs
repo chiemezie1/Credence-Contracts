@@ -15,7 +15,7 @@ pub fn get_tier_for_amount(e: &Env, amount: i128) -> BondTier {
         .storage()
         .instance()
         .get::<_, crate::TierThresholds>(&crate::DataKey::TierThresholds)
-        .unwrap_or_else(|| crate::TierThresholds {
+        .unwrap_or(crate::TierThresholds {
             bronze_max: TIER_BRONZE_MAX,
             silver_max: TIER_SILVER_MAX,
             gold_max: TIER_GOLD_MAX,
