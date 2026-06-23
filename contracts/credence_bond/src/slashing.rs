@@ -364,7 +364,7 @@ mod tests {
         assert!(!is_fully_slashed(1000, 0));
         assert!(!is_fully_slashed(1000, 500));
         assert!(is_fully_slashed(1000, 1000));
-        assert!(is_fully_slashed(1000, 1500)); // Over-slashed
+        assert!(is_fully_slashed(1000, 1500));
     }
 
     #[test]
@@ -376,11 +376,9 @@ mod tests {
 
     #[test]
     fn test_available_balance_with_slashing() {
-        // Verify available balance calculation
         let available = get_available_balance(1000, 300);
         assert_eq!(available, 700);
 
-        // Fully slashed
         let available_full = get_available_balance(1000, 1000);
         assert_eq!(available_full, 0);
     }
