@@ -46,6 +46,37 @@ pub enum AttestationStatus {
     NotFound,
 }
 
+/// Pre-v2 layout — used only for lazy-migration reads of entries stored before
+/// `revoked_at` and `scheme` were added.
+///
+/// **Do not use for writes.**  All new writes go through [`Delegation`].
+#[contracttype]
+#[derive(Clone, Debug)]
+pub struct LegacyDelegation {
+    pub owner: Address,
+    pub delegate: Address,
+    pub delegation_type: DelegationType,
+    pub expires_at: u64,
+    pub revoked: bool,
+}
+
+/// A stored delegation record.
+///
+/// ## Wire layout (Soroban XDR, field-order stable)
+/// | # | Field           | Type   | Notes                                         |
+/// |---|-----------------|--------|-----------------------------------------------|
+/// | 0 | `owner`         | Address| —                                             |
+/// | 1 | `delegate`      | Address| —                                             |
+/// | 2 | `delegation_type`| DelegationType | —                                    |
+/// | 3 | `expires_at`    | u64    | —                                             |
+/// | 4 | `revoked`       | bool   | —                                             |
+/// | 5 | `revoked_at`    | u64    | Added v2. `0` = not revoked (sentinel).       |
+/// | 6 | `scheme`        | u32    | Added v2. `0` = Ed25519 (legacy default).     |
+///
+/// ## Legacy-entry defaults
+/// Entries written before v2 lack fields 5–6.  [`load_delegation`] reads them
+/// as [`LegacyDelegation`] and re-saves the upgraded struct with
+/// `revoked_at = 0` and `scheme = 0`.  Subsequent reads see the v2 layout.
 #[contracttype]
 #[derive(Clone, Debug)]
 pub struct Delegation {
@@ -54,6 +85,14 @@ pub struct Delegation {
     pub delegation_type: DelegationType,
     pub expires_at: u64,
     pub revoked: bool,
+    /// Ledger timestamp at which this delegation was revoked.
+    /// `0` means not yet revoked (legacy sentinel; also the default for
+    /// pre-v2 entries that lack this field).
+    pub revoked_at: u64,
+    /// Signature scheme used to authorise this delegation's creation.
+    /// `0` = Ed25519 (default).  Matches [`verifier::SchemeTag`] integer values.
+    /// Pre-v2 entries that lack this field are read back as `0`.
+    pub scheme: u32,
 }
 
 /// Aggregated view of a delegation's state for indexers and off-chain tools.
@@ -206,7 +245,7 @@ impl CredenceDelegation {
         // blocks both interaction types uniformly.
         nonce::consume_nonce(&e, &owner, nonce);
 
-        Self::store_delegation(&e, owner, delegate, delegation_type, expires_at)
+        Self::store_delegation(&e, owner, delegate, delegation_type, expires_at, 0)
     }
 
     /// Revoke an existing delegation. Only the owner can revoke.
@@ -291,7 +330,7 @@ impl CredenceDelegation {
         // Nonce consumption (replay prevention)
         nonce::consume_nonce(&e, &owner, payload.nonce);
 
-        Self::store_delegation(&e, owner, delegate, delegation_type, expires_at)
+        Self::store_delegation(&e, owner, delegate, delegation_type, expires_at, payload.scheme)
     }
 
     /// Relayer-friendly variant of `revoke_delegation`.
@@ -381,8 +420,8 @@ impl CredenceDelegation {
             is_valid,
             time_to_expiry: d.expires_at.saturating_sub(now),
             delegation_type: d.delegation_type,
-            revoked_at: 0, // Placeholder: not currently recorded in Delegation struct
-            scheme: 0,     // Placeholder: defaults to Ed25519 (0)
+            revoked_at: d.revoked_at,
+            scheme: d.scheme,
         }
     }
 
@@ -394,10 +433,7 @@ impl CredenceDelegation {
         delegation_type: DelegationType,
     ) -> Delegation {
         let key = DataKey::Delegation(owner, delegate, delegation_type);
-        let d: Delegation = e
-            .storage()
-            .persistent()
-            .get(&key)
+        let d: Delegation = Self::load_delegation(&e, &key)
             .unwrap_or_else(|| panic_with_error!(&e, ContractError::DelegationNotFound));
         nonce::bump_delegation_ttl(&e, &key, d.expires_at);
         d
@@ -418,7 +454,7 @@ impl CredenceDelegation {
         delegation_type: DelegationType,
     ) -> bool {
         let key = DataKey::Delegation(owner, delegate, delegation_type);
-        match e.storage().persistent().get::<_, Delegation>(&key) {
+        match Self::load_delegation(&e, &key) {
             Some(d) => {
                 nonce::bump_delegation_ttl(&e, &key, d.expires_at);
                 // Validity check: not revoked AND expires_at > current timestamp (strictly greater)
@@ -434,7 +470,7 @@ impl CredenceDelegation {
         subject: Address,
     ) -> AttestationStatus {
         let key = DataKey::Delegation(attester, subject, DelegationType::Attestation);
-        match e.storage().persistent().get::<_, Delegation>(&key) {
+        match Self::load_delegation(&e, &key) {
             Some(d) => {
                 nonce::bump_delegation_ttl(&e, &key, d.expires_at);
                 if d.revoked {
@@ -645,6 +681,20 @@ impl CredenceDelegation {
     ///
     /// This harness validates this property with sequences of advancing ledger
     /// timestamps and verifies the rejection set remains stable.
+    /// Load a delegation from storage.
+    ///
+    /// Returns `Some(Delegation)` if the entry exists, `None` if absent.
+    ///
+    /// ## Legacy entries (v1 → v2 migration)
+    /// [`LegacyDelegation`] documents the pre-v2 on-disk layout. In a live
+    /// upgrade scenario, an admin should call a migration entry point that reads
+    /// each entry as `LegacyDelegation`, fills `revoked_at = 0` and `scheme = 0`,
+    /// and re-persists it as `Delegation`.  All *new* entries are written in v2
+    /// format, so this hot path only calls `get::<_, Delegation>`.
+    fn load_delegation(e: &Env, key: &DataKey) -> Option<Delegation> {
+        e.storage().persistent().get::<_, Delegation>(key)
+    }
+
     fn validate_delegation_expiry(e: &Env, expires_at: u64) {
         let now = e.ledger().timestamp();
         // Lower bound check: expires_at must be STRICTLY GREATER than now (not equal)
@@ -666,6 +716,7 @@ impl CredenceDelegation {
         delegate: Address,
         delegation_type: DelegationType,
         expires_at: u64,
+        scheme: u32,
     ) -> Delegation {
         let key = DataKey::Delegation(owner.clone(), delegate.clone(), delegation_type.clone());
         let d = Delegation {
@@ -674,6 +725,8 @@ impl CredenceDelegation {
             delegation_type,
             expires_at,
             revoked: false,
+            revoked_at: 0,
+            scheme,
         };
         e.storage().persistent().set(&key, &d);
         nonce::bump_delegation_ttl(e, &key, expires_at);
@@ -693,10 +746,7 @@ impl CredenceDelegation {
         kind: &'static str,
     ) {
         let key = DataKey::Delegation(owner.clone(), delegate.clone(), delegation_type.clone());
-        let mut d: Delegation = e
-            .storage()
-            .persistent()
-            .get(&key)
+        let mut d: Delegation = Self::load_delegation(e, &key)
             .unwrap_or_else(|| panic_with_error!(e, ContractError::DelegationNotFound));
 
         if d.revoked {
@@ -704,6 +754,7 @@ impl CredenceDelegation {
         }
 
         d.revoked = true;
+        d.revoked_at = e.ledger().timestamp();
         e.storage().persistent().set(&key, &d);
         nonce::bump_delegation_ttl(e, &key, d.expires_at);
         e.events()
@@ -737,3 +788,6 @@ mod test_pause_proposal_view;
 
 #[cfg(test)]
 mod test_expiry_boundary;
+
+#[cfg(test)]
+mod test_summary;
