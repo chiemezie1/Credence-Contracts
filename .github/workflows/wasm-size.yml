@@ -35,8 +35,17 @@ jobs:
       - name: Cache cargo artifacts
         uses: Swatinem/rust-cache@v2
 
-      - name: Build release WASM (workspace)
-        run: cargo build --target wasm32-unknown-unknown --release --locked
+      - name: Build release WASM (deployable contracts)
+        run: |
+          cargo build --target wasm32-unknown-unknown --release --locked \
+            -p admin \
+            -p credence_arbitration \
+            -p credence_bond \
+            -p credence_delegation \
+            -p credence_multisig \
+            -p credence_treasury \
+            -p templates \
+            -p timelock
 
       - name: Enforce per-contract WASM size budgets
         run: bash scripts/check_wasm_size.sh

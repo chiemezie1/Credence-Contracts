@@ -9,7 +9,7 @@ CI enforces per-contract ceilings via [`.github/workflows/wasm-size.yml`](../.gi
 | Contract | Budget (KiB) | Budget (bytes) |
 | --- | ---: | ---: |
 | `admin` | 64 | 65 536 |
-| `arbitration` | 64 | 65 536 |
+| `credence_arbitration` | 64 | 65 536 |
 | `credence_bond` | 64 | 65 536 |
 | `credence_delegation` | 64 | 65 536 |
 | `credence_multisig` | 64 | 65 536 |
@@ -21,7 +21,7 @@ The default ceiling for any contract not listed explicitly is **64 KiB** (65 536
 
 ## How it works
 
-1. The **WASM Size Budget** workflow builds all workspace contracts with `cargo build --target wasm32-unknown-unknown --release --locked` (pinned toolchain from [`rust-toolchain.toml`](../rust-toolchain.toml)).
+1. The **WASM Size Budget** workflow builds all deployable contracts with `cargo build --target wasm32-unknown-unknown --release --locked -p <contract>…` (pinned toolchain from [`rust-toolchain.toml`](../rust-toolchain.toml)).
 2. `scripts/check_wasm_size.sh` scans `target/wasm32-unknown-unknown/release/*.wasm` and fails if any artifact exceeds its configured budget.
 3. Debug symbols are stripped via the workspace `profile.release.strip = "symbols"` setting, so only deployable code size is measured.
 
@@ -30,7 +30,9 @@ Pass a single argument to override all limits for a one-off local check, e.g. `.
 ## Local validation
 
 ```bash
-cargo build --target wasm32-unknown-unknown --release --locked
+cargo build --target wasm32-unknown-unknown --release --locked \
+  -p admin -p credence_arbitration -p credence_bond -p credence_delegation \
+  -p credence_multisig -p credence_treasury -p templates -p timelock
 chmod +x scripts/check_wasm_size.sh
 ./scripts/check_wasm_size.sh
 ```
