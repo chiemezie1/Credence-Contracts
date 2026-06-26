@@ -632,8 +632,6 @@ impl ErrorExt for ContractError {
             | ContractError::OwnerMismatch
             | ContractError::TargetMismatch
             | ContractError::ContractIdMismatch => ErrorCategory::Delegation,
-            ContractError::ContractCodeVerificationFailed => ErrorCategory::Registry,
-            ContractError::DelegationNotExpired => ErrorCategory::Delegation,
         }
     }
 
@@ -760,7 +758,6 @@ impl ErrorExt for ContractError {
             ContractError::AdminUnchanged => "Proposed admin is the same as the current admin",
             ContractError::TimelockNotReady => "Timelock delay has not yet elapsed",
             ContractError::Underflow => "Integer underflow in checked arithmetic",
-            ContractError::ContractCodeVerificationFailed => "Contract code verification failed",
         }
     }
 
@@ -881,8 +878,6 @@ impl ErrorExt for ContractError {
 
             // --- Arithmetic (700-799): code-level impossibility. ---
             ContractError::Overflow | ContractError::Underflow => false,
-            ContractError::ContractCodeVerificationFailed => false,
-            ContractError::DelegationNotExpired => false,
         }
     }
 }
