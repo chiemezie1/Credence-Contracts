@@ -55,26 +55,9 @@ cargo clippy --workspace --all-targets --all-features -- -D warnings
 
 The dedicated CI workflow at `.github/workflows/contracts-lints.yml` runs the same checks.
 
-## Release profile — WASM size
+## Security scanning
 
-The workspace release profile is tuned to minimize WASM binary size:
-
-```toml
-[profile.release]
-opt-level = "z"       # Optimize for size
-lto = "fat"           # Full link-time optimisation across all crates
-codegen-units = 1     # Single codegen unit for maximum inlining
-strip = "symbols"     # Strip debug symbols
-panic = "abort"       # Omit panic unwind machinery
-```
-
-- `opt-level = "z"` — instructs `rustc` to optimise for size rather than speed.
-- `lto = "fat"` — enables full cross-crate LTO so the linker can eliminate dead code and inline across crate boundaries.
-- `codegen-units = 1` — prevents the compiler from splitting a crate into multiple compilation units, giving the optimiser a whole-crate view.
-- `strip = "symbols"` — removes the symbol table from the final `.wasm`.
-- `panic = "abort"` — replaces panic unwind landing pads with an immediate `wasm32::unreachable`, saving hundreds of bytes per panic site.
-
-These settings apply workspace-wide. Individual contracts can override them in their own `Cargo.toml` if needed.
+Pull requests run `cargo audit --deny warnings`; dependency vulnerabilities are surfaced in a sticky PR comment and the full JSON report is uploaded as a workflow artifact. See [docs/SECURITY_SCANNING.md](docs/SECURITY_SCANNING.md) for the local command and triage flow.
 
 ## WASM size budget
 
