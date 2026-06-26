@@ -529,6 +529,7 @@ dependencies = [
  "serde",
  "serde_json",
  "soroban-sdk",
+ "soroban-spec",
 ]
 
 [[package]]

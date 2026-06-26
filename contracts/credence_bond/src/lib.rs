@@ -30,6 +30,10 @@ pub mod types;
 #[cfg(test)]
 pub mod test_invariants;
 
+/// Shared test setup utilities (mock token, bond registration).
+#[cfg(test)]
+pub mod test_helpers;
+
 /// Chaos testing suite for simulating host and token failures.
 #[cfg(test)]
 mod chaos_token;
@@ -159,6 +163,9 @@ pub enum DataKey {
     /// Value: `Address`. When absent, `slash()` reverts with
     /// `ContractError::TreasuryNotConfigured`.
     SlashTreasury,
+    /// Governance-controlled flag: when `true`, new bond creation and top-ups
+    /// are blocked. Value: `bool`.
+    BorrowFrozen,
 }
 
 /// Sub-key namespace for upgrade-authorization storage entries.
@@ -299,7 +306,7 @@ impl CredenceBond {
     /// let contract_id = e.register(CredenceBond, ());
     /// let client = CredenceBondClient::new(&e, &contract_id);
     /// let admin = Address::generate(&e);
-    /// client.initialize(&admin, None);  // or Some(registry_address) for trustless binding
+    /// client.initialize(&admin, &None);  // or Some(registry_address) for trustless binding
     /// ```
     pub fn initialize(e: Env, admin: Address, registry_address: Option<Address>) {
         // auth: tree shape identifies the admin; usually a single signature entry.
@@ -312,10 +319,14 @@ impl CredenceBond {
             // The bond calls the registry's register_trustless function with its identity.
             // The identity is derived from the admin address for this reference implementation.
             // In production, this could be a separate identity parameter.
-            let _ = e.invoke_contract::<()>(
+            e.invoke_contract::<()>(
                 &registry,
                 &Symbol::new(&e, "register_trustless"),
-                soroban_sdk::vec![&e, admin.into_val(&e)],
+                soroban_sdk::vec![
+                    &e,
+                    admin.into_val(&e),
+                    e.current_contract_address().into_val(&e),
+                ],
             );
             // Ignore errors during registration to maintain backward compatibility
             // and allow bonds to be initialized without a registry.
