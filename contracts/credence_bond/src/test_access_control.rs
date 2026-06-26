@@ -358,7 +358,7 @@ fn test_admin_success() {
 
     client.set_early_exit_config(&admin, &treasury, &500_u32);
 
-    let config = client.describe_config();
+    let config = client.describe_config().unwrap();
     assert_eq!(config.early_exit_penalty_bps, Some(500));
 }
 
@@ -393,7 +393,7 @@ fn test_admin_as_attester_edge_case() {
     }]);
 
     client.set_early_exit_config(&admin, &treasury, &600_u32);
-    let config = client.describe_config();
+    let config = client.describe_config().unwrap();
     assert_eq!(config.early_exit_penalty_bps, Some(600));
 
     let non_admin_attester = Address::generate(&env);

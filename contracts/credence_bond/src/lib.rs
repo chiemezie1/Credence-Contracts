@@ -295,36 +295,22 @@ impl CredenceBond {
     /// - `ContractError::AlreadyInitialized` if called more than once.
     ///
     /// See also: [`docs/credence-bond.md`](../../../docs/credence-bond.md)
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// use credence_bond::{CredenceBond, CredenceBondClient};
-    /// use soroban_sdk::{Env, Address};
-    /// use soroban_sdk::testutils::Address as _;
-    ///
-    /// let e = Env::default();
-    /// e.mock_all_auths();
-    /// let contract_id = e.register(CredenceBond, ());
-    /// let client = CredenceBondClient::new(&e, &contract_id);
-    /// let admin = Address::generate(&e);
-    /// client.initialize(&admin);
-    /// ```
-    pub fn initialize(e: Env, admin: Address) {
+    pub fn initialize(e: Env, admin: Address, registry: Option<Address>) {
         // auth: tree shape identifies the admin; usually a single signature entry.
         admin.require_auth();
         e.storage().instance().set(&DataKey::Admin, &admin);
+        if let Some(registry) = registry {
+            e.invoke_contract::<()>(
+                &registry,
+                &Symbol::new(&e, "register_trustless"),
+                soroban_sdk::vec![&e, admin.into_val(&e)],
+            );
+        }
     }
 
     /// Initialize and attempt trustless self-registration with a registry.
     pub fn initialize_with_registry(e: Env, admin: Address, registry: Address) {
-        admin.require_auth();
-        e.storage().instance().set(&DataKey::Admin, &admin);
-        e.invoke_contract::<()>(
-            &registry,
-            &Symbol::new(&e, "register_trustless"),
-            soroban_sdk::vec![&e, admin.into_val(&e)],
-        );
+        Self::initialize(e.clone(), admin, Some(registry));
     }
 
     /// Configure the token contract used for bond custody and withdrawals.
@@ -338,29 +324,26 @@ impl CredenceBond {
 
     /// Return a structured snapshot of all contract configuration.
     ///
-    /// Read-only; no auth required. Panics with `ContractError::NotInitialized`
-    /// when the contract has not been initialized yet.
+    /// Read-only; no auth required. Returns `None` when the contract has not
+    /// been initialized yet, so callers can safely read the entrypoint without
+    /// tripping a panic on a fresh deployment.
     ///
     /// See also: [`docs/bond-introspection.md`](../../../docs/bond-introspection.md)
-    pub fn describe_config(e: Env) -> BondConfigView {
-        let admin: Address = e
-            .storage()
-            .instance()
-            .get(&DataKey::Admin)
-            .unwrap_or_else(|| panic_with_error!(e, ContractError::NotInitialized));
+    pub fn describe_config(e: Env) -> Option<BondConfigView> {
+        let admin: Address = e.storage().instance().get(&DataKey::Admin)?;
 
         let early_exit: Option<early_exit_penalty::EarlyExitConfig> =
             e.storage().instance().get(&DataKey::EarlyExitConfig);
 
         let (weight_multiplier_bps, weight_max) = weighted_attestation::get_weight_config(&e);
 
-        BondConfigView {
+        Some(BondConfigView {
             admin,
             early_exit_treasury: early_exit.as_ref().map(|c| c.treasury.clone()),
             early_exit_penalty_bps: early_exit.as_ref().map(|c| c.penalty_bps),
             weight_multiplier_bps,
             weight_max,
-        }
+        })
     }
 
     /// Return a snapshot of the bond state for `identity`, or `None` if no bond exists.
@@ -1123,7 +1106,7 @@ impl CredenceBond {
     /// - `ContractError::Overflow` if arithmetic overflows.
     /// - `ContractError::InvariantViolation` if penalty arithmetic does not split
     ///   the gross withdrawal exactly into treasury penalty plus identity payout.
-    pub fn withdraw_early(e: Env, amount: i128) -> IdentityBond {
+    pub fn withdraw_early(e: Env, identity: Address, amount: i128) -> IdentityBond {
         let key = DataKey::Bond;
 
         Self::acquire_lock(&e);
@@ -1338,7 +1321,6 @@ impl CredenceBond {
             token_integration::transfer_into_contract(&e, &bond.identity, amount);
         }
 
-        bond.bonded_amount = bond
         let new_bonded_amount = bond
             .bonded_amount
             .checked_add(amount)
@@ -2148,7 +2130,7 @@ mod test_early_exit_treasury_requirement {
         e.ledger().set(ledger_info);
 
         // This should panic because the early exit config (and thus treasury) is not set.
-        client.withdraw_early(&1000);
+        client.withdraw_early(&identity, &1000);
     }
 }
 
@@ -2163,8 +2145,6 @@ mod test_early_exit_precision;
 #[cfg(test)]
 mod test_early_exit_penalty;
 
-#[cfg(test)]
-mod test_helpers;
 
 /// Deliberately-divergent contract used by `test_differential` to verify the
 /// harness detects behavioural divergence.  Never shipped to mainnet.

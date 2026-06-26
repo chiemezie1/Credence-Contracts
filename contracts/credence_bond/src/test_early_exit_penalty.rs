@@ -91,7 +91,7 @@ fn test_early_exit_emits_penalty_event() {
     let (client, admin, identity, _token_id, bond_contract_id) = test_helpers::setup_with_token(&e);
     client.set_early_exit_config(&admin, &treasury, &500); // 5%
     client.create_bond(&identity, &1000_i128, &86400_u64, &false, &0_u64);
-    client.withdraw_early(&200);
+    client.withdraw_early(&identity, &200);
     let expected_penalty = early_exit_penalty::calculate_penalty(200, 86_400, 86_400, 500);
     let events = e.events().all();
     let found = events.iter().any(|(contract_id, topics, data)| {
@@ -136,7 +136,7 @@ fn test_early_exit_fails_without_config_and_reverts_state() {
     let before_identity = token_client.balance(&identity);
     let before_contract = token_client.balance(&bond_contract_id);
 
-    let result = client.try_withdraw_early(&100);
+    let result = client.try_withdraw_early(&identity, &100);
     assert!(
         result.is_err(),
         "withdraw_early must revert when early-exit treasury is unset"
@@ -156,7 +156,7 @@ fn test_early_exit_without_config_uses_typed_error() {
     e.ledger().with_mut(|li| li.timestamp = 1000);
     let (client, _admin, identity, ..) = test_helpers::setup_with_token(&e);
     client.create_bond(&identity, &1000_i128, &86400_u64, &false, &0_u64);
-    client.withdraw_early(&100);
+    client.withdraw_early(&identity, &100);
 }
 
 #[test]
@@ -178,7 +178,7 @@ fn test_early_exit_penalty_and_payout_sum_to_gross_withdrawal() {
     let expected_penalty = early_exit_penalty::calculate_penalty(gross, 50, 100, 1000);
     let expected_payout = gross.checked_sub(expected_penalty).unwrap();
 
-    let bond = client.withdraw_early(&gross);
+    let bond = client.withdraw_early(&identity, &gross);
     assert_eq!(bond.bonded_amount, 600);
     assert_eq!(expected_penalty + expected_payout, gross);
     assert_eq!(

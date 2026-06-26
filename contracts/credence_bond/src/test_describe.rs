@@ -1,7 +1,7 @@
 //! Tests for the `describe_config` and `describe_bond` introspection entrypoints.
 //!
 //! Coverage:
-//! - `describe_config` panics with `NotInitialized` before `initialize`.
+//! - `describe_config` returns `None` before `initialize`.
 //! - `describe_config` returns correct values after `initialize`.
 //! - `describe_config` reflects `set_early_exit_config` changes.
 //! - `describe_bond` returns `None` when no bond exists.
@@ -29,13 +29,11 @@ fn setup(e: &Env) -> (CredenceBondClient<'_>, Address) {
 // ── describe_config ──────────────────────────────────────────────────────────
 
 #[test]
-#[should_panic]
-fn test_describe_config_panics_when_uninitialized() {
+fn test_describe_config_returns_none_when_uninitialized() {
     let e = Env::default();
     let contract_id = e.register(CredenceBond, ());
     let client = CredenceBondClient::new(&e, &contract_id);
-    // No initialize call — must panic with NotInitialized.
-    client.describe_config();
+    assert!(client.describe_config().is_none());
 }
 
 #[test]
@@ -43,7 +41,7 @@ fn test_describe_config_after_initialize() {
     let e = Env::default();
     let (client, admin) = setup(&e);
 
-    let cfg = client.describe_config();
+    let cfg = client.describe_config().unwrap();
 
     assert_eq!(cfg.admin, admin);
     // Early-exit config not set yet.
@@ -64,7 +62,7 @@ fn test_describe_config_reflects_early_exit_config() {
 
     client.set_early_exit_config(&admin, &treasury, &500_u32);
 
-    let cfg = client.describe_config();
+    let cfg = client.describe_config().unwrap();
     assert_eq!(cfg.early_exit_treasury, Some(treasury));
     assert_eq!(cfg.early_exit_penalty_bps, Some(500_u32));
 }
@@ -81,7 +79,7 @@ fn test_describe_config_no_auth_required() {
     client.initialize(&admin, &None);
 
     // Call without any auth mock — should not panic.
-    let cfg = client.describe_config();
+    let cfg = client.describe_config().unwrap();
     assert_eq!(cfg.admin, admin);
 }
 
@@ -150,7 +148,7 @@ fn test_describe_bond_reflects_top_up() {
     let identity = Address::generate(&e);
 
     client.create_bond(&identity, &1000_i128, &3600_u64, &false, &0_u64);
-    client.top_up(&250_i128);
+    client.top_up(&identity, &250_i128);
 
     let view = client.describe_bond(&identity).unwrap();
     assert_eq!(view.bonded_amount, 1_250);

@@ -38,7 +38,7 @@ fn initialize_succeeds_when_admin_authorizes() {
     let contract_id = env.register(CredenceBond, ());
     let client = CredenceBondClient::new(&env, &contract_id);
     client.initialize(&admin, &None);
-    let cfg = client.describe_config();
+    let cfg = client.describe_config().unwrap();
     assert_eq!(cfg.admin, admin);
 }
 
@@ -61,7 +61,7 @@ fn set_early_exit_config_succeeds_when_admin_authorizes() {
     let (env, admin, client) = setup();
     let treasury = Address::generate(&env);
     client.set_early_exit_config(&admin, &treasury, &500_u32);
-    let cfg = client.describe_config();
+    let cfg = client.describe_config().unwrap();
     assert_eq!(cfg.early_exit_penalty_bps, Some(500_u32));
     assert_eq!(cfg.early_exit_treasury, Some(treasury));
 }
@@ -190,7 +190,7 @@ fn revoke_attestation_succeeds_when_attester_authorizes() {
 fn set_weight_config_succeeds_when_admin_authorizes() {
     let (env, admin, client) = setup();
     client.set_weight_config(&admin, &200_u32, &5_u32);
-    let cfg = client.describe_config();
+    let cfg = client.describe_config().unwrap();
     assert_eq!(cfg.weight_multiplier_bps, 200_u32);
     assert_eq!(cfg.weight_max, 5_u32);
 }
@@ -215,7 +215,7 @@ fn transfer_admin_succeeds_when_both_parties_authorize() {
     let new_admin = Address::generate(&env);
     client.transfer_admin(&admin, &new_admin);
     // After transfer the new admin is the stored admin.
-    let cfg = client.describe_config();
+    let cfg = client.describe_config().unwrap();
     assert_eq!(cfg.admin, new_admin);
 }
 
@@ -295,7 +295,7 @@ fn top_up_rejected_when_stranger_calls() {
     let identity = Address::generate(&env);
     let stranger = Address::generate(&env);
     client.create_bond(&identity, &1000_i128, &86400_u64, &false, &0_u64);
-    client.top_up(&identity, &stranger, &500_i128);
+    client.top_up(&identity, &500_i128);
 }
 
 // ---------------------------------------------------------------------------
@@ -320,7 +320,7 @@ fn extend_duration_rejected_when_stranger_calls() {
     let identity = Address::generate(&env);
     let stranger = Address::generate(&env);
     client.create_bond(&identity, &1000_i128, &86400_u64, &false, &0_u64);
-    client.extend_duration(&identity, &stranger, &3600_u64);
+    client.extend_duration(&identity, &3600_u64);
 }
 
 // ---------------------------------------------------------------------------

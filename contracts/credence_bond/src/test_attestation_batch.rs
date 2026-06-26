@@ -222,6 +222,6 @@ fn test_batch_atomic_rollback() {
     assert_eq!(client.get_nonce(&attester1), nonce1);
 
     // Verify no attestations were stored for subject
-    let view = client.describe_config(); // check if contract still works
+    let view = client.describe_config().unwrap(); // check if contract still works
     assert_eq!(view.weight_max, 10_000);
 }
