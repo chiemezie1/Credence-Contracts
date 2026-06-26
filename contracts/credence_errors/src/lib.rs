@@ -14,7 +14,15 @@
     clippy::restriction
 )]
 
-use soroban_sdk::contracterror;
+use soroban_sdk::{contracterror, contracttype};
+
+/// Represents the role of an entity in the system.
+#[contracttype]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Role {
+    Admin,
+    User,
+}
 
 /// @title  ErrorCategory
 /// @notice Groups errors by domain for monitoring, alerting, and dashboards.
