@@ -1,5 +1,5 @@
 #![cfg(test)]
-
+extern crate alloc;
 extern crate std;
 
 use crate::{
@@ -8,6 +8,7 @@ use crate::{
 };
 use soroban_sdk::testutils::{Address as _, Ledger};
 use soroban_sdk::{Address, Env, Symbol};
+use core::fmt::Write;
 
 fn setup_with_contract(e: &Env) -> (CredenceBondClient<'_>, Address, Address) {
     e.mock_all_auths();
@@ -66,14 +67,16 @@ fn test_expire_claims_all_expired() {
     let now = env.ledger().timestamp();
 
     // Add 5 claims that will expire
-    for i in 0..5 {
+    for i in 0u32..5u32 {
+        let mut label = alloc::string::String::from("claim_");
+        write!(&mut label, "{}", i).unwrap();
         claims::add_pending_claim(
             &env,
             &user,
             ClaimType::VerifierReward,
             1000 + (i as i128),
             i as u64,
-            Some(Symbol::new(&env, &format!("claim_{}", i))),
+            Some(Symbol::new(&env, &label)),
         );
     }
 
@@ -102,14 +105,16 @@ fn test_expire_claims_bounded_by_max_iter() {
     let now = env.ledger().timestamp();
 
     // Add 100 claims
-    for i in 0..100 {
+    for i in 0u32..100u32 {
+        let mut label = alloc::string::String::from("claim_");
+        write!(&mut label, "{}", i).unwrap();
         claims::add_pending_claim(
             &env,
             &user,
             ClaimType::VerifierReward,
             1000 + (i as i128),
             i as u64,
-            Some(Symbol::new(&env, &format!("claim_{}", i))),
+            Some(Symbol::new(&env, &label)),
         );
     }
 
@@ -198,14 +203,16 @@ fn test_expire_claims_mixed_expired_valid() {
     let now = env.ledger().timestamp();
 
     // Add 10 claims
-    for i in 0..10 {
+    for i in 0u32..10u32 {
+        let mut label = alloc::string::String::from("claim_");
+        write!(&mut label, "{}", i).unwrap();
         claims::add_pending_claim(
             &env,
             &user,
             ClaimType::VerifierReward,
             1000 + (i as i128),
             i as u64,
-            Some(Symbol::new(&env, &format!("claim_{}", i))),
+            Some(Symbol::new(&env, &label)),
         );
     }
 
@@ -237,14 +244,16 @@ fn test_expire_claims_preserves_valid_claims_order() {
     let now = env.ledger().timestamp();
 
     // Add 5 claims; we'll expire some and keep others
-    for i in 0..5 {
+    for i in 0u32..5u32 {
+        let mut label = alloc::string::String::from("claim_");
+        write!(&mut label, "{}", i).unwrap();
         claims::add_pending_claim(
             &env,
             &user,
             ClaimType::VerifierReward,
             1000 + (i as i128),
             i as u64,
-            Some(Symbol::new(&env, &format!("claim_{}", i))),
+            Some(Symbol::new(&env, &label)),
         );
     }
 
@@ -288,14 +297,16 @@ fn test_expire_claims_idempotent() {
     let now = env.ledger().timestamp();
 
     // Add 10 claims
-    for i in 0..10 {
+    for i in 0u32..10u32 {
+        let mut label = alloc::string::String::from("claim_");
+        write!(&mut label, "{}", i).unwrap();
         claims::add_pending_claim(
             &env,
             &user,
             ClaimType::VerifierReward,
             1000 + (i as i128),
             i as u64,
-            Some(Symbol::new(&env, &format!("claim_{}", i))),
+            Some(Symbol::new(&env, &label)),
         );
     }
 
@@ -324,14 +335,16 @@ fn test_expire_claims_max_iter_zero_uses_default() {
     let now = env.ledger().timestamp();
 
     // Add 100 claims
-    for i in 0..100 {
+    for i in 0u32..100u32 {
+        let mut label = alloc::string::String::from("claim_");
+        write!(&mut label, "{}", i).unwrap();
         claims::add_pending_claim(
             &env,
             &user,
             ClaimType::VerifierReward,
             1000 + (i as i128),
             i as u64,
-            Some(Symbol::new(&env, &format!("claim_{}", i))),
+            Some(Symbol::new(&env, &label)),
         );
     }
 

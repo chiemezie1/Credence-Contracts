@@ -139,6 +139,9 @@ pub enum DataKey {
     /// Value: `Address`. When absent, `slash()` reverts with
     /// `ContractError::TreasuryNotConfigured`.
     SlashTreasury,
+    /// Whether new borrow creation/top-up operations are currently frozen.
+    /// Value: `bool`.
+    BorrowFrozen,
 }
 
 /// Sub-key namespace for upgrade-authorization storage entries.
@@ -282,6 +285,10 @@ impl CredenceBond {
     /// client.initialize(&admin, None);  // or Some(registry_address) for trustless binding
     /// ```
     pub fn initialize(e: Env, admin: Address, registry_address: Option<Address>) {
+        if e.storage().instance().has(&DataKey::Admin) {
+            panic_with_error!(&e, ContractError::AlreadyInitialized);
+        }
+
         // auth: tree shape identifies the admin; usually a single signature entry.
         admin.require_auth();
         e.storage().instance().set(&DataKey::Admin, &admin);
