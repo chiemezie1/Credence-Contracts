@@ -1091,6 +1091,7 @@ impl CredenceBond {
             panic_with_error!(e, ContractError::InsufficientBalance);
         }
 
+        let old_tier = tiered_bond::get_tier_for_amount(&e, bond.bonded_amount);
         bond.bonded_amount = bond
             .bonded_amount
             .checked_sub(amount)
@@ -1098,6 +1099,8 @@ impl CredenceBond {
         if bond.slashed_amount > bond.bonded_amount {
             panic_with_error!(e, ContractError::SlashExceedsBond);
         }
+        let new_tier = tiered_bond::get_tier_for_amount(&e, bond.bonded_amount);
+        tiered_bond::emit_tier_change_if_needed(&e, &bond.identity, old_tier, new_tier);
 
         e.storage().instance().set(&key, &bond);
         bump_instance_ttl(&e);
@@ -1334,6 +1337,8 @@ impl CredenceBond {
             .bonded_amount
             .checked_add(amount)
             .unwrap_or_else(|| panic_with_error!(e, ContractError::Overflow));
+        let new_tier = tiered_bond::get_tier_for_amount(&e, bond.bonded_amount);
+        tiered_bond::emit_tier_change_if_needed(&e, &bond.identity, old_tier, new_tier);
 
         // Validate the new total amount
         validation::validate_bond_amount(new_bonded_amount);
