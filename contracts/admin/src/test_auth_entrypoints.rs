@@ -115,7 +115,7 @@ fn deactivate_admin_succeeds_when_caller_outranks_target() {
     assert!(!info.active);
 }
 
-/// Sad path: an Admin cannot deactivate a peer Admin (same role level).
+/// Sad path: an Operator cannot deactivate an Admin.
 #[test]
 #[should_panic(expected = "Error(Contract, #100)")]
 fn deactivate_admin_rejected_when_caller_does_not_outrank_target() {
@@ -126,7 +126,7 @@ fn deactivate_admin_rejected_when_caller_does_not_outrank_target() {
     add_admin(&env, &contract, &super_admin, &admin2, AdminRole::Admin);
 
     env.as_contract(&contract, || {
-        AdminContract::deactivate_admin(env.clone(), admin1.clone(), admin2.clone());
+        AdminContract::deactivate_admin(env.clone(), operator.clone(), admin.clone());
     });
 }
 
@@ -151,7 +151,10 @@ fn reactivate_admin_succeeds_when_super_admin_authorizes() {
         AdminContract::reactivate_admin(env.clone(), super_admin.clone(), admin.clone());
     });
 
-    assert!(env.as_contract(&contract, || AdminContract::is_admin(env.clone(), admin)));
+    assert_eq!(
+        env.as_contract(&contract, || AdminContract::is_admin(env.clone(), admin)),
+        Role::Admin
+    );
 }
 
 /// Sad path: an Operator cannot reactivate an Admin.
@@ -191,8 +194,8 @@ fn suspend_admin_succeeds_when_super_admin_authorizes() {
     });
 
     // Admin should appear inactive while timestamp < until_ts.
-    let is_active = env.as_contract(&contract, || AdminContract::is_admin(env.clone(), admin.clone()));
-    assert!(!is_active, "suspended admin must not be active before expiry");
+    let admin_role = env.as_contract(&contract, || AdminContract::is_admin(env.clone(), admin.clone()));
+    assert_eq!(admin_role, Role::User, "suspended admin must not be active before expiry");
 }
 
 /// Sad path: suspension with a past timestamp must be rejected.

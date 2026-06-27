@@ -19,7 +19,7 @@ pub mod pausable;
 #[cfg(test)]
 mod test_ownership_transfer;
 
-use credence_errors::ContractError;
+use credence_errors::{ContractError, Role};
 use soroban_sdk::panic_with_error;
 use soroban_sdk::{contract, contractimpl, contracttype, Address, Env, String, Symbol, Vec};
 
@@ -856,20 +856,21 @@ e.events().publish(
     /// * `address` - Address to check
     ///
     /// # Returns
-    /// `true` if the address is an active admin, `false` otherwise.
-    /// An admin under an unexpired suspension is treated as inactive;
-    /// they become active again automatically once the suspension timestamp
-    /// has passed — no second transaction is required.
-    pub fn is_admin(e: Env, address: Address) -> bool {
+    /// `Role::Admin` if the address is an active admin, `Role::User` otherwise.
+    pub fn is_admin(e: Env, address: Address) -> Role {
         match e
             .storage()
             .instance()
             .get::<_, AdminInfo>(&DataKey::AdminInfo(address))
         {
             Some(admin_info) => {
-                admin_info.active && e.ledger().timestamp() >= admin_info.suspended_until
+                if admin_info.active && e.ledger().timestamp() >= admin_info.suspended_until {
+                    Role::Admin
+                } else {
+                    Role::User
+                }
             }
-            None => false,
+            None => Role::User,
         }
     }
 

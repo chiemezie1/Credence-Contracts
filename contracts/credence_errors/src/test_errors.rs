@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     extern crate std;
-    use crate::{ContractError, ErrorCategory, ErrorExt};
+    use crate::{ContractError, ErrorCategory, ErrorExt, Role};
     use std::vec::Vec;
 
     fn all_variants() -> Vec<ContractError> {
@@ -464,8 +464,8 @@ mod tests {
     }
 
     // authorization
-    fn mock_admin(is_admin: bool) -> Result<(), ContractError> {
-        if !is_admin {
+    fn mock_admin(role: Role) -> Result<(), ContractError> {
+        if role != Role::Admin {
             return Err(ContractError::NotAdmin);
         }
         Ok(())
@@ -501,8 +501,8 @@ mod tests {
 
     #[test]
     fn test_not_admin() {
-        assert_eq!(mock_admin(false), Err(ContractError::NotAdmin));
-        assert!(mock_admin(true).is_ok());
+        assert_eq!(mock_admin(Role::User), Err(ContractError::NotAdmin));
+        assert!(mock_admin(Role::Admin).is_ok());
     }
 
     #[test]
