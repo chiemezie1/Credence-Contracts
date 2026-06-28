@@ -15,7 +15,7 @@
 use crate::test_helpers;
 use crate::CredenceBondClient;
 use soroban_sdk::testutils::{Address as _, Ledger};
-use soroban_sdk::{Address, Env, Symbol};
+use soroban_sdk::{Address, Env};
 
 /// Shared setup: contract with token, emergency config set.
 /// Returns (client, admin, treasury, governance, identity).
@@ -26,7 +26,9 @@ fn setup_with_emergency(
     let governance = Address::generate(e);
     let treasury = Address::generate(e);
     // Enable emergency config so treasury is registered.
-    client.set_emergency_config(&admin, &governance, &treasury, &0_u32, &false);
+    e.as_contract(&client.address, || {
+        crate::emergency::set_config(e, governance.clone(), treasury.clone(), 0_u32, false);
+    });
     (client, admin, treasury, governance, identity)
 }
 

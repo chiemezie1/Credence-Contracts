@@ -12,6 +12,7 @@ mod migration;
 mod nonce;
 pub mod pausable;
 mod rolling_bond;
+mod safe_token;
 mod same_ledger_liquidation_guard;
 mod slash_history;
 mod slashing;
@@ -26,6 +27,8 @@ pub mod types;
 /// Reusable bond-invariant assertion library (test-only).
 #[cfg(test)]
 pub mod test_invariants;
+#[cfg(test)]
+mod test_helpers;
 
 /// Chaos testing suite for simulating host and token failures.
 #[cfg(test)]
@@ -1480,15 +1483,6 @@ impl CredenceBond {
     /// - Panics with `"not initialized"` when admin has not been set.
     /// - Panics with `"not admin"` when caller is not the admin.
     pub fn pause(e: Env, caller: Address) -> Option<u64> {
-        let stored_admin: Address = e
-            .storage()
-            .instance()
-            .get(&DataKey::Admin)
-            .unwrap_or_else(|| panic_with_error!(e, ContractError::NotInitialized));
-        if stored_admin != caller {
-            panic!("not admin");
-        }
-        caller.require_auth();
         pausable::pause(&e, &caller)
     }
 
@@ -1497,15 +1491,6 @@ impl CredenceBond {
     /// # Preconditions
     /// - Caller must be the stored admin.
     pub fn unpause(e: Env, caller: Address) -> Option<u64> {
-        let stored_admin: Address = e
-            .storage()
-            .instance()
-            .get(&DataKey::Admin)
-            .unwrap_or_else(|| panic_with_error!(e, ContractError::NotInitialized));
-        if stored_admin != caller {
-            panic!("not admin");
-        }
-        caller.require_auth();
         pausable::unpause(&e, &caller)
     }
 

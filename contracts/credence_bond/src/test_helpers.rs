@@ -89,7 +89,9 @@ pub fn setup_with_token_mint(
     let expiration = e.ledger().sequence().saturating_add(10000);
     token_client.approve(&identity, &contract_id, &mint_amount, &expiration);
 
-    client.set_token(&admin, &stellar_asset);
+    e.as_contract(&contract_id, || {
+        e.storage().instance().set(&crate::DataKey::BondToken, &stellar_asset);
+    });
 
     (client, admin, identity, stellar_asset, contract_id)
 }
