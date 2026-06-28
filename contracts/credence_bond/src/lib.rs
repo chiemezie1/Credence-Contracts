@@ -3,6 +3,8 @@
 mod batch;
 mod claims;
 mod early_exit_penalty;
+pub mod emergency;
+mod emergency_drain;
 mod events;
 mod invariants;
 mod leverage;
@@ -36,6 +38,8 @@ pub mod types;
 /// Reusable bond-invariant assertion library (test-only).
 #[cfg(test)]
 pub mod test_invariants;
+#[cfg(test)]
+mod test_helpers;
 
 /// Shared test setup utilities (mock token, bond registration).
 #[cfg(test)]
@@ -1918,6 +1922,160 @@ impl CredenceBond {
     fn check_lock(e: &Env) -> bool {
         let key = Symbol::new(e, "locked");
         e.storage().instance().get(&key).unwrap_or(false)
+    }
+
+    // -----------------------------------------------------------------------
+    // Pause
+    // -----------------------------------------------------------------------
+
+    /// Pause the contract (single-admin path; no multisig threshold set).
+    ///
+    /// # Preconditions
+    /// - Caller must be the stored admin.
+    ///
+    /// # Errors
+    /// - Panics with `"not initialized"` when admin has not been set.
+    /// - Panics with `"not admin"` when caller is not the admin.
+    pub fn pause(e: Env, caller: Address) -> Option<u64> {
+        pausable::pause(&e, &caller)
+    }
+
+    /// Unpause the contract (single-admin path).
+    ///
+    /// # Preconditions
+    /// - Caller must be the stored admin.
+    pub fn unpause(e: Env, caller: Address) -> Option<u64> {
+        pausable::unpause(&e, &caller)
+    }
+
+    /// Return whether the contract is currently paused.
+    pub fn is_paused(e: Env) -> bool {
+        pausable::is_paused(&e)
+    }
+
+    // -----------------------------------------------------------------------
+    // Emergency Drain
+    // -----------------------------------------------------------------------
+
+    /// Schedule an emergency drain of residual USDC to the treasury.
+    ///
+    /// Stores a drain ETA of `now + delay` (minimum [`emergency_drain::DRAIN_TIMELOCK_SECONDS`]).
+    /// The drain cannot be executed until `now >= eta`.
+    ///
+    /// # Preconditions
+    /// - Contract **must be paused** (call [`pause`](Self::pause) first).
+    /// - `admin` must be the stored administrator and must sign.
+    /// - `delay` must be ≥ 86 400 seconds (24 hours).
+    ///
+    /// # Errors
+    /// - `ContractError::NotInitialized` — contract not initialized.
+    /// - `ContractError::NotAdmin` — caller is not admin.
+    /// - `ContractError::EmergencyDrainNotPermitted` — contract not paused.
+    /// - `ContractError::TimelockNotReady` — delay below minimum.
+    pub fn schedule_emergency_drain(e: Env, admin: Address, delay: u64) {
+        // auth: admin must sign.
+        admin.require_auth();
+        let stored_admin: Address = e
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .unwrap_or_else(|| panic_with_error!(e, ContractError::NotInitialized));
+        if stored_admin != admin {
+            panic_with_error!(e, ContractError::NotAdmin);
+        }
+        emergency_drain::schedule_drain(&e, &admin, delay);
+    }
+
+    /// Cancel a pending emergency drain schedule.
+    ///
+    /// Removes the stored ETA so a subsequent drain attempt requires
+    /// re-scheduling via [`schedule_emergency_drain`](Self::schedule_emergency_drain).
+    ///
+    /// # Preconditions
+    /// - `admin` must be the stored administrator and must sign.
+    pub fn cancel_emergency_drain(e: Env, admin: Address) {
+        admin.require_auth();
+        let stored_admin: Address = e
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .unwrap_or_else(|| panic_with_error!(e, ContractError::NotInitialized));
+        if stored_admin != admin {
+            panic_with_error!(e, ContractError::NotAdmin);
+        }
+        emergency_drain::cancel_drain(&e, &admin);
+    }
+
+    /// Execute an emergency drain of `amount` USDC to `recipient` (treasury).
+    ///
+    /// This is the catastrophic-incident recovery path.  It is intentionally
+    /// narrow and layered with multiple independent security gates:
+    ///
+    /// 1. **Paused** — contract must be paused; prevents drain while live.
+    /// 2. **Timelock elapsed** — drain must have been scheduled at least
+    ///    [`emergency_drain::DRAIN_TIMELOCK_SECONDS`] seconds ago.
+    /// 3. **Admin auth** — only the configured admin may call this.
+    /// 4. **Treasury recipient** — `recipient` must equal the treasury address
+    ///    stored in the emergency config; any other destination is rejected.
+    ///
+    /// A [`emergency_drain::DrainRecord`] is written to persistent storage
+    /// (immutable, append-only) and an `emergency_drain` event is emitted.
+    ///
+    /// # Parameters
+    /// - `admin` — must be the stored admin and sign the transaction.
+    /// - `amount` — USDC amount to drain; must be > 0.
+    /// - `recipient` — must equal `emergency_config.treasury`.
+    ///
+    /// # Returns
+    /// The assigned drain record id (monotonic, starting at 1).
+    ///
+    /// # Errors
+    /// - `ContractError::NotInitialized` — contract not initialized.
+    /// - `ContractError::NotAdmin` — caller is not admin.
+    /// - `ContractError::EmergencyDrainNotPermitted` — not paused, or no ETA scheduled.
+    /// - `ContractError::TimelockNotReady` — ETA not yet reached.
+    /// - Panics with `"amount must be positive"` — `amount <= 0`.
+    /// - Panics with `"recipient must be treasury"` — wrong recipient.
+    pub fn emergency_drain_to_treasury(
+        e: Env,
+        admin: Address,
+        amount: i128,
+        recipient: Address,
+    ) -> u64 {
+        // auth: admin must sign.
+        admin.require_auth();
+        let stored_admin: Address = e
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .unwrap_or_else(|| panic_with_error!(e, ContractError::NotInitialized));
+        if stored_admin != admin {
+            panic_with_error!(e, ContractError::NotAdmin);
+        }
+
+        // Resolve treasury from emergency config.
+        let cfg = crate::emergency::get_config(&e);
+        let treasury = cfg.treasury;
+
+        emergency_drain::execute_drain(&e, &admin, amount, &recipient, &treasury)
+    }
+
+    /// Return the scheduled drain ETA (ledger timestamp), or `None` when not
+    /// yet scheduled.
+    pub fn get_drain_eta(e: Env) -> Option<u64> {
+        emergency_drain::get_drain_eta(&e)
+    }
+
+    /// Return the latest drain record id (0 = no drain executed yet).
+    pub fn get_latest_drain_id(e: Env) -> u64 {
+        emergency_drain::latest_drain_id(&e)
+    }
+
+    /// Retrieve a drain audit record by id.
+    ///
+    /// Panics when the id has not been assigned yet.
+    pub fn get_drain_record(e: Env, id: u64) -> emergency_drain::DrainRecord {
+        emergency_drain::get_drain_record(&e, id)
     }
 }
 

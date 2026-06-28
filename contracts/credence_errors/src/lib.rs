@@ -455,6 +455,11 @@ pub enum ContractError {
     /// Timelock delay has not yet elapsed.
     TimelockNotReady = 112,
 
+    /// Emergency drain is not permitted: contract must be paused and timelock window must have elapsed.
+    /// Contracts: bond
+    /// Wire-stable: do not renumber this error code.
+    EmergencyDrainNotPermitted = 113,
+
     // --- Treasury (600-699) ---
     /// Amount argument must be strictly positive (> 0).
     /// Replaces: panic!("amount must be positive")
@@ -644,7 +649,8 @@ impl ErrorExt for ContractError {
             ContractError::NoPendingAdmin
             | ContractError::InvalidAdminAddress
             | ContractError::AdminUnchanged
-            | ContractError::TimelockNotReady => ErrorCategory::Authorization,
+            | ContractError::TimelockNotReady
+            | ContractError::EmergencyDrainNotPermitted => ErrorCategory::Authorization,
             ContractError::DomainMismatch
             | ContractError::OwnerMismatch
             | ContractError::TargetMismatch
@@ -774,6 +780,7 @@ impl ErrorExt for ContractError {
             ContractError::InvalidAdminAddress => "Proposed admin is the zero or identity address",
             ContractError::AdminUnchanged => "Proposed admin is the same as the current admin",
             ContractError::TimelockNotReady => "Timelock delay has not yet elapsed",
+            ContractError::EmergencyDrainNotPermitted => "Emergency drain requires contract to be paused and timelock window to have elapsed",
             ContractError::Underflow => "Integer underflow in checked arithmetic",
         }
     }
