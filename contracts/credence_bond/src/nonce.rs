@@ -34,17 +34,43 @@ pub fn consume_nonce(e: &Env, identity: &Address, expected_nonce: u64) {
     bump_nonce_ttl(e, &DataKey::Nonce(identity.clone()), 0);
 }
 
-#[allow(dead_code)]
 /// Returns the configured grace window in seconds (0 = strict enforcement).
 ///
 /// Grace is DISABLED by default. When non-zero, signatures are accepted for
 /// up to `grace` seconds past their nominal deadline to absorb inclusion delays.
 /// Nonces are still consumed on first use — grace does NOT weaken replay protection.
-fn get_grace_window(e: &Env) -> u64 {
+///
+/// # Security
+/// A non-zero grace window widens the replay/expiry attack surface on signed
+/// bond actions by exactly `grace` seconds: a signature is accepted for that much
+/// longer past its nominal deadline. Operators should keep this at `0` unless a
+/// specific inclusion-delay problem requires relaxing deadlines, and should treat
+/// any non-zero value as a security-relevant parameter to monitor.
+#[must_use]
+pub fn get_grace_window(e: &Env) -> u64 {
     e.storage()
         .instance()
         .get(&DataKey::GraceWindow)
         .unwrap_or(0)
+}
+
+/// Persists a new grace window value (in seconds) and returns the previous value.
+///
+/// This is observability/configuration only: it does not change
+/// `validate_and_consume` semantics beyond the deadline math that already reads
+/// the stored window via [`get_grace_window`]. Callers are responsible for admin
+/// authorization and event emission (see `lib::set_grace_window`).
+///
+/// # Security
+/// A non-zero window relaxes signed-action deadlines by `grace` seconds and so
+/// directly widens the replay/expiry attack surface.
+pub fn set_grace_window(e: &Env, grace: u64) -> u64 {
+    let old = get_grace_window(e);
+    e.storage()
+        .instance()
+        .set(&DataKey::GraceWindow, &grace);
+    bump_nonce_ttl(e, &DataKey::GraceWindow, 0);
+    old
 }
 
 #[allow(dead_code)]

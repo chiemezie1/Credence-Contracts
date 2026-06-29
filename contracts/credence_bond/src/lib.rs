@@ -1028,6 +1028,60 @@ impl CredenceBond {
         nonce::get_nonce(&e, &identity)
     }
 
+    /// Returns the configured signed-action grace window in seconds.
+    ///
+    /// Returns `0` when unset (the default), which means strict deadline
+    /// enforcement (`now <= deadline`). A non-zero value means signed bond
+    /// actions are accepted for up to that many seconds past their nominal
+    /// deadline.
+    ///
+    /// # Security
+    /// A non-zero grace window widens the replay/expiry attack surface on signed
+    /// bond actions. This read view lets operators and indexers observe whether
+    /// deadlines are currently being relaxed.
+    pub fn get_grace_window(e: Env) -> u64 {
+        nonce::get_grace_window(&e)
+    }
+
+    /// Set the signed-action grace window (in seconds). Admin only.
+    ///
+    /// Emits a `param_updated` event (key `"grace_window"`, category
+    /// `"security"`) carrying the `(old, new)` values so changes to this
+    /// security-relevant parameter are observable off-chain.
+    ///
+    /// This is observability/configuration only — it does not change
+    /// `validate_and_consume` semantics beyond the deadline window the verifier
+    /// already reads from storage.
+    ///
+    /// # Security
+    /// A non-zero window relaxes signed-action deadlines and directly widens the
+    /// replay/expiry attack surface. Prefer `0` (strict enforcement).
+    ///
+    /// # Errors
+    /// - `ContractError::NotInitialized` when the admin has not been set.
+    /// - `ContractError::NotAdmin` when `admin` is not the configured admin.
+    pub fn set_grace_window(e: Env, admin: Address, grace: u64) {
+        let stored_admin: Address = e
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .unwrap_or_else(|| panic_with_error!(e, ContractError::NotInitialized));
+        admin.require_auth();
+        if admin != stored_admin {
+            panic_with_error!(e, ContractError::NotAdmin);
+        }
+
+        let old = nonce::set_grace_window(&e, grace);
+        events::emit_parameter_updated(
+            &e,
+            Symbol::new(&e, "grace_window"),
+            Symbol::new(&e, "security"),
+            &admin,
+            old as i128,
+            grace as i128,
+        );
+    }
+
     /// Set attester stake (admin only).
     pub fn set_attester_stake(e: Env, admin: Address, attester: Address, amount: i128) {
         let stored_admin: Address = e
@@ -2388,3 +2442,7 @@ mod test_attestation_batch;
 /// Regression tests for storage TTL bumps (issue #570).
 #[cfg(test)]
 mod test_storage_ttl;
+
+/// Tests for the grace-window read view and admin-gated setter (issue #655).
+#[cfg(test)]
+mod test_grace_window;
